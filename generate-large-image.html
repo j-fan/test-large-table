@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Large Image Generator</title>
+<style>
+  body { font-family: sans-serif; padding: 24px; }
+  button { padding: 12px 24px; font-size: 18px; background: #4a90d9; color: #fff; border: none; border-radius: 8px; cursor: pointer; margin-right: 12px; }
+  #status { margin-top: 16px; font-size: 16px; color: #333; }
+</style>
+</head>
+<body>
+<h2>Large Image Generator</h2>
+<p>Generates a large PNG using a canvas element, then copies it to clipboard.</p>
+<button id="generate40">Generate &amp; Copy 40MB image</button>
+<button id="generate200">Generate &amp; Copy 200MB image</button>
+<div id="status"></div>
+<canvas id="canvas" style="display:none"></canvas>
+<script>
+const status = document.getElementById('status');
+const canvas = document.getElementById('canvas');
+const ctx = canvas.getContext('2d');
+
+async function generateAndCopy(targetMB) {
+  status.textContent = `Generating ~${targetMB}MB image...`;
+
+  // Each pixel is 4 bytes (RGBA). To hit targetMB uncompressed:
+  // pixels = targetMB * 1024 * 1024 / 4
+  const pixels = (targetMB * 1024 * 1024) / 4;
+  const side = Math.floor(Math.sqrt(pixels));
+  canvas.width = side;
+  canvas.height = side;
+
+  // Fill with noise to prevent compression from reducing size significantly
+  const imageData = ctx.createImageData(side, side);
+  const buf = new Uint32Array(imageData.data.buffer);
+  for (let i = 0; i < buf.length; i++) {
+    buf[i] = 0xff000000 | (Math.random() * 0xffffff);
+  }
+  ctx.putImageData(imageData, 0, 0);
+
+  status.textContent = `Canvas drawn (${side}×${side}px = ~${targetMB}MB uncompressed). Converting to PNG...`;
+
+  canvas.toBlob(async (blob) => {
+    status.textContent = `PNG blob size: ${(blob.size / 1024 / 1024).toFixed(1)}MB. Copying to clipboard...`;
+    try {
+      await navigator.clipboard.write([
+        new ClipboardItem({ 'image/png': blob }),
+      ]);
+      status.textContent = `Done — ~${targetMB}MB PNG copied to clipboard. Now paste into your app and observe whether the "file too large" toast appears or the app crashes first.`;
+    } catch (e) {
+      status.textContent = `Clipboard write failed: ${e.message}. Try using the download button instead.`;
+      // Fallback: offer download
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = `large-${targetMB}mb.png`;
+      a.textContent = `Download ${targetMB}MB PNG`;
+      a.style.display = 'block';
+      a.style.marginTop = '12px';
+      status.appendChild(a);
+    }
+  }, 'image/png');
+}
+
+document.getElementById('generate40').addEventListener('click', () => generateAndCopy(40));
+document.getElementById('generate200').addEventListener('click', () => generateAndCopy(200));
+</script>
+</body>
+</html>

@@ -4,15 +4,22 @@
 <title>Large Image Generator</title>
 <style>
   body { font-family: sans-serif; padding: 24px; }
-  button { padding: 12px 24px; font-size: 18px; background: #4a90d9; color: #fff; border: none; border-radius: 8px; cursor: pointer; margin-right: 12px; }
+  label { font-size: 16px; }
+  input[type=number] { font-size: 16px; padding: 8px; width: 100px; margin: 0 8px; border: 1px solid #ccc; border-radius: 6px; }
+  button { padding: 12px 24px; font-size: 18px; background: #4a90d9; color: #fff; border: none; border-radius: 8px; cursor: pointer; margin-top: 12px; display: block; }
+  button:hover { background: #3a7bc8; }
+  button:disabled { background: #aaa; cursor: not-allowed; }
   #status { margin-top: 16px; font-size: 16px; color: #333; }
 </style>
 </head>
 <body>
 <h2>Large Image Generator</h2>
-<p>Generates a large PNG using a canvas element, then copies it to clipboard.</p>
-<button id="generate40">Generate &amp; Copy 40MB image</button>
-<button id="generate200">Generate &amp; Copy 200MB image</button>
+<p>Generates a large PNG using a canvas element filled with noise.</p>
+<label>
+  Size (MB):
+  <input type="number" id="sizeMb" value="200" min="1" max="2000" />
+</label>
+<button id="generateBtn">Generate image</button>
 <div id="status"></div>
 <canvas id="canvas" style="display:none"></canvas>
 <script>
@@ -20,17 +27,16 @@ const status = document.getElementById('status');
 const canvas = document.getElementById('canvas');
 const ctx = canvas.getContext('2d');
 
-async function generateAndCopy(targetMB) {
+function generateAndRender(targetMB) { return new Promise(resolve => {
   status.textContent = `Generating ~${targetMB}MB image...`;
 
-  // Each pixel is 4 bytes (RGBA). To hit targetMB uncompressed:
-  // pixels = targetMB * 1024 * 1024 / 4
+  // Each pixel is 4 bytes (RGBA). pixels = targetMB * 1024 * 1024 / 4
   const pixels = (targetMB * 1024 * 1024) / 4;
   const side = Math.floor(Math.sqrt(pixels));
   canvas.width = side;
   canvas.height = side;
 
-  // Fill with noise to prevent compression from reducing size significantly
+  // Fill with noise so PNG compression doesn't significantly reduce in-memory size
   const imageData = ctx.createImageData(side, side);
   const buf = new Uint32Array(imageData.data.buffer);
   for (let i = 0; i < buf.length; i++) {
@@ -44,7 +50,6 @@ async function generateAndCopy(targetMB) {
     const sizeMB = (blob.size / 1024 / 1024).toFixed(1);
     const url = URL.createObjectURL(blob);
 
-    // Render image to page — use native "Copy Image" long-press to copy
     const existing = document.getElementById('preview');
     if (existing) existing.remove();
     const container = document.createElement('div');
@@ -59,11 +64,27 @@ async function generateAndCopy(targetMB) {
     `;
     document.body.appendChild(container);
     status.textContent = `Done — scroll down to see the image.`;
+    resolve();
   }, 'image/png');
-}
+}); }
 
-document.getElementById('generate40').addEventListener('click', () => generateAndCopy(40));
-document.getElementById('generate200').addEventListener('click', () => generateAndCopy(200));
+document.getElementById('generateBtn').addEventListener('click', () => {
+  const targetMB = parseInt(document.getElementById('sizeMb').value, 10);
+  if (!targetMB || targetMB < 1) {
+    status.textContent = 'Please enter a valid size in MB.';
+    return;
+  }
+  const btn = document.getElementById('generateBtn');
+  btn.textContent = 'Generating…';
+  btn.disabled = true;
+  // Defer heavy work so the button update renders before the main thread is blocked
+  setTimeout(() => {
+    generateAndRender(targetMB).finally(() => {
+      btn.textContent = 'Generate image';
+      btn.disabled = false;
+    });
+  }, 0);
+});
 </script>
 </body>
 </html>

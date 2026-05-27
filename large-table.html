@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Large Table Generator</title>
+<style>
+table { border-collapse: collapse; }
+td { border: 1px solid #ccc; padding: 4px; min-width: 80px; }
+img { width: 200px; height: 200px; }
+</style>
+</head>
+<body>
+<button id="copyBtn" style="position:fixed;top:16px;left:16px;z-index:999;padding:12px 24px;font-size:18px;background:#4a90d9;color:#fff;border:none;border-radius:8px;cursor:pointer">Copy table</button>
+<table id="tbl">
+<script>
+const rows = 500;
+const cols = 10;
+const imgSizes = [400, 600, 800, 1000, 1200];
+let html = '';
+for (let r = 0; r < rows; r++) {
+  html += '<tr>';
+  for (let c = 0; c < cols; c++) {
+    if ((r * cols + c) % 3 === 0) {
+      const size = imgSizes[(r + c) % imgSizes.length];
+      html += `<td><img src="https://picsum.photos/${size}/${size}?random=${r}_${c}" alt="img_${r}_${c}"><br>Cell ${r},${c}</td>`;
+    } else {
+      html += `<td>Data row=${r} col=${c} ${'x'.repeat(50)}</td>`;
+    }
+  }
+  html += '</tr>';
+}
+document.currentScript.parentElement.innerHTML += html;
+</script>
+</table>
+<script>
+document.getElementById('copyBtn').addEventListener('click', async () => {
+  const tbl = document.getElementById('tbl');
+  const selection = window.getSelection();
+  const range = document.createRange();
+  range.selectNodeContents(tbl);
+  selection.removeAllRanges();
+  selection.addRange(range);
+  try {
+    await navigator.clipboard.write([
+      new ClipboardItem({
+        'text/html': new Blob([tbl.outerHTML], { type: 'text/html' }),
+        'text/plain': new Blob([tbl.innerText], { type: 'text/plain' }),
+      }),
+    ]);
+    document.getElementById('copyBtn').textContent = 'Copied!';
+  } catch {
+    document.execCommand('copy');
+    document.getElementById('copyBtn').textContent = 'Copied!';
+  }
+  selection.removeAllRanges();
+});
+</script>
+</body>
+</html>

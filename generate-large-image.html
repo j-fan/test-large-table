@@ -41,23 +41,24 @@ async function generateAndCopy(targetMB) {
   status.textContent = `Canvas drawn (${side}×${side}px = ~${targetMB}MB uncompressed). Converting to PNG...`;
 
   canvas.toBlob(async (blob) => {
-    status.textContent = `PNG blob size: ${(blob.size / 1024 / 1024).toFixed(1)}MB. Copying to clipboard...`;
-    try {
-      await navigator.clipboard.write([
-        new ClipboardItem({ 'image/png': blob }),
-      ]);
-      status.textContent = `Done — ~${targetMB}MB PNG copied to clipboard. Now paste into your app and observe whether the "file too large" toast appears or the app crashes first.`;
-    } catch (e) {
-      status.textContent = `Clipboard write failed: ${e.message}. Try using the download button instead.`;
-      // Fallback: offer download
-      const a = document.createElement('a');
-      a.href = URL.createObjectURL(blob);
-      a.download = `large-${targetMB}mb.png`;
-      a.textContent = `Download ${targetMB}MB PNG`;
-      a.style.display = 'block';
-      a.style.marginTop = '12px';
-      status.appendChild(a);
-    }
+    const sizeMB = (blob.size / 1024 / 1024).toFixed(1);
+    const url = URL.createObjectURL(blob);
+
+    // Render image to page — use native "Copy Image" long-press to copy
+    const existing = document.getElementById('preview');
+    if (existing) existing.remove();
+    const container = document.createElement('div');
+    container.id = 'preview';
+    container.style.marginTop = '16px';
+    container.innerHTML = `
+      <p><strong>PNG rendered below (${sizeMB}MB).</strong><br>
+      Long-press the image and select <em>Copy Image</em>, then paste into your app.</p>
+      <img src="${url}" style="max-width:300px;border:1px solid #ccc;" />
+      <br><br>
+      <a href="${url}" download="large-${targetMB}mb.png" style="font-size:16px;">Download instead</a>
+    `;
+    document.body.appendChild(container);
+    status.textContent = `Done — scroll down to see the image.`;
   }, 'image/png');
 }
 
